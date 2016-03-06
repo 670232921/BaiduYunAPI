@@ -100,7 +100,9 @@ namespace WpfApplication1
                 string dest = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), entry.server_filename);
                 var callback = ProManager.AddDownload(entry.server_filename);
                 //new Thread(() => baidu1.DownFileWithProcess(entry, dest, callback)).Start();
-                new Thread(() => baidu1.DownPiceFileWithProgress(entry, dest, callback)).Start();
+                var thread = new Thread(() => baidu1.DownPiceFileWithProgress(entry, dest, callback));
+                thread.IsBackground = true;
+                thread.Start();
                 //baidu1.DownFileWithProcess(entry.path, dest, null);
             }
         }

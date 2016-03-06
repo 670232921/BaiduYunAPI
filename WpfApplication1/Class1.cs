@@ -204,6 +204,10 @@ namespace WpfApplication1
                 lastUpdate = DateTime.Now;
                 Current = cur;
             }
+            else
+            {
+                Current = 1;
+            }
             Size = total;
 
             if (UpdateParent != null)

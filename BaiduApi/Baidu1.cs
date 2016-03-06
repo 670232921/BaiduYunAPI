@@ -943,7 +943,9 @@ namespace BaiduApi
                 if (process != null) process(0, entry.size);
                 if (!running)
                 {
-                    new Thread(Run).Start();
+                    var thread = new Thread(Run);
+                    thread.IsBackground = true;
+                    thread.Start();
                 }
             }
         }
@@ -1014,7 +1016,9 @@ namespace BaiduApi
         {
             for (int i = 0; i < n; i++)
             {
-                new Thread(DownloadOnePice).Start();
+                var thread = new Thread(DownloadOnePice);
+                thread.IsBackground = true;
+                thread.Start();
             }
         }
         private void DownloadOnePice()
@@ -1106,10 +1110,13 @@ namespace BaiduApi
 
             public bool IsFinish()
             {
-                foreach (var item in _pices.Values)
+                lock (_pices)
                 {
-                    if (item != Status.Finish)
-                        return false;
+                    foreach (var item in _pices.Values)
+                    {
+                        if (item != Status.Finish)
+                            return false;
+                    }
                 }
                 return true;
             }
@@ -1120,14 +1127,16 @@ namespace BaiduApi
                 if (_data.process == null) { return; }
 
                 long current = 0;
-                foreach (var item in _pices)
+                lock (_pices)
                 {
-                    if (item.Value == Status.Finish)
+                    foreach (var item in _pices)
                     {
-                        current += item.Key.Size;
+                        if (item.Value == Status.Finish)
+                        {
+                            current += item.Key.Size;
+                        }
                     }
                 }
-
                 _data.process(current, _data.entry.size);
             }
 
