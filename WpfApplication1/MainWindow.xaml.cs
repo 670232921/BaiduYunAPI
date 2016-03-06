@@ -99,7 +99,8 @@ namespace WpfApplication1
             {
                 string dest = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), entry.server_filename);
                 var callback = ProManager.AddDownload(entry.server_filename);
-                new Thread(() => baidu1.DownFileWithProcess(entry, dest, callback)).Start();
+                //new Thread(() => baidu1.DownFileWithProcess(entry, dest, callback)).Start();
+                new Thread(() => baidu1.DownPiceFileWithProgress(entry, dest, callback)).Start();
                 //baidu1.DownFileWithProcess(entry.path, dest, null);
             }
         }

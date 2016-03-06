@@ -17,6 +17,9 @@ namespace BaiduApi
 {
     public class Baidu1
     {
+        private DownloadOneFileManager _oneFileManger;
+
+
         static double o1 = 0, o2 = 0, o3 = 0, o4 = 0;
         static double k1 = 0, k2 = 0, k3 = 0, k4 = 0;
         static double m1 = 0, m2 = 0, m3 = 0, m4 = 0;
@@ -36,7 +39,7 @@ namespace BaiduApi
             userName = _username;
             pwd = _pwd;
             Login();//登录百度
-
+            _oneFileManger = new DownloadOneFileManager(this);
         }
 
         #region 公开方法
@@ -218,6 +221,11 @@ namespace BaiduApi
             return FileOper.下载文件成功;
         }
 
+        public void DownPiceFileWithProgress(Entry entry, string localPath, Action<long, long> process)
+        {
+            _oneFileManger.DownFileWithProcess(entry, localPath, process);
+        }
+
         public bool DownloadPice(PiceData data)
         {
             return DownloadPice(data.Entry, data.WriteStream, data.Offsite, data.Size);
@@ -233,7 +241,7 @@ namespace BaiduApi
                 webReq.CookieContainer = requestCookie;
                 GetAllCookies(requestCookie);
                 webReq.Method = "GET";
-                webReq.AddRange(offsite, size);
+                webReq.AddRange(offsite, size + offsite - 1);
                 HttpWebResponse webResp = (HttpWebResponse)webReq.GetResponse();
                 responseCookie.Add(webResp.Cookies);
                 using (Stream st = webResp.GetResponseStream())
@@ -245,10 +253,11 @@ namespace BaiduApi
                         int osize = st.Read(by, 0, (int)by.Length);
                         while (osize > 0)
                         {
-                            totalDownloadedByte = osize + totalDownloadedByte;
                             so.Write(by, 0, osize);
+                            totalDownloadedByte = osize + totalDownloadedByte;
                             osize = st.Read(by, 0, (int)by.Length);
                         }
+                        return totalDownloadedByte != 0;
                     }
                 }
             }
@@ -922,7 +931,7 @@ namespace BaiduApi
     public class DownloadOneFileManager
     {
         private PiceManager _piceManager;
-        private int _maxThread = 5;
+        private int _maxThread = 15;
         private long _piceSize = 512 * 1024;
         private Baidu1 _baidu1;
         private DownloadFileData _fileData;
@@ -959,10 +968,13 @@ namespace BaiduApi
         {
             while (true)
             {
-                var data = _piceManager.GetPice();
-                if (data != null)
+                if (_piceManager != null)
                 {
-                    return data;
+                    var data = _piceManager.GetPice();
+                    if (data != null)
+                    {
+                        return data;
+                    }
                 }
 
                 Thread.Sleep(300);
@@ -990,6 +1002,7 @@ namespace BaiduApi
                 _data = data;
                 _fileStream = new FileStream(_data.localPath, FileMode.Create, FileAccess.Write);
                 _fileStream.SetLength(_data.entry.size);
+                CreatePices();
             }
             
             private void CreatePices()
@@ -1020,6 +1033,17 @@ namespace BaiduApi
                     _pices[data] = Status.Finish;
                     Progress();
                 }
+            }
+
+            private bool IsFinish()
+            {
+                foreach (var item in _pices.Values)
+                {
+                    if (item != Status.Finish)
+                        return false;
+                }
+                _fileStream.Dispose();
+                return true;
             }
             
             private void Progress()
@@ -1064,20 +1088,23 @@ namespace BaiduApi
     public class PiceData
     {
         private Action<PiceData, bool> _callback;
-        public PiceData()
-        { }
         public PiceData(Entry entry, long off, long size, Action<PiceData, bool> finishCallback)
         {
             Entry = entry;
+            Size = size;
+            Offsite = off;
             Data = new byte[size];
             WriteStream = new MemoryStream(Data);
-            Offsite = off;
-            Size = size;
             _callback = finishCallback;
         }
 
         public void SetFinish(bool isSuccess)
         {
+            if (!isSuccess)
+            {
+                Data = new byte[Size];
+                WriteStream = new MemoryStream(Data);
+            }
             _callback(this, isSuccess);
         }
         public Entry Entry { get; set; }
