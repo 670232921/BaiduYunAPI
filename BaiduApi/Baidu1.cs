@@ -11,6 +11,7 @@ using System.Web;
 using System.Text.RegularExpressions;
 using System.Collections;
 using System.Threading;
+using System.Reflection;
 
 namespace BaiduApi
 {
@@ -215,6 +216,47 @@ namespace BaiduApi
                 return FileOper.下载文件失败;
             }
             return FileOper.下载文件成功;
+        }
+
+        public bool DownloadPice(PiceData data)
+        {
+            return DownloadPice(data.Entry, data.WriteStream, data.Offsite, data.Size);
+        }
+
+        private bool DownloadPice(Entry entry, Stream writeStream, long offsite, long size)
+        {
+            string url = "http://c.pcs.baidu.com/rest/2.0/pcs/file?";
+            url += "method=download&path=" + entry.path + "&app_id=" + SkyDrive_app_id;
+            try
+            {
+                HttpWebRequest webReq = (HttpWebRequest)WebRequest.Create(url);
+                webReq.CookieContainer = requestCookie;
+                GetAllCookies(requestCookie);
+                webReq.Method = "GET";
+                webReq.AddRange(offsite, size);
+                HttpWebResponse webResp = (HttpWebResponse)webReq.GetResponse();
+                responseCookie.Add(webResp.Cookies);
+                using (Stream st = webResp.GetResponseStream())
+                {
+                    using (Stream so = writeStream)
+                    {
+                        long totalDownloadedByte = 0;
+                        byte[] by = new byte[1024];
+                        int osize = st.Read(by, 0, (int)by.Length);
+                        while (osize > 0)
+                        {
+                            totalDownloadedByte = osize + totalDownloadedByte;
+                            so.Write(by, 0, osize);
+                            osize = st.Read(by, 0, (int)by.Length);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -845,5 +887,203 @@ namespace BaiduApi
         public int server_mtime { get; set; }
         public string server_filename { get; set; }
         public string md5 { get; set; }
+    }
+
+    public static class Extersions
+    {
+        #region HttpWebRequest.AddRange(long)
+        static MethodInfo httpWebRequestAddRangeHelper = typeof(WebHeaderCollection).GetMethod
+                                                ("AddWithoutValidate", BindingFlags.Instance | BindingFlags.NonPublic);
+        /// <summary>
+        /// Adds a byte range header to a request for a specific range from the beginning or end of the requested data.
+        /// </summary>
+        /// <param name="request">The <see cref="System.Web.HttpWebRequest"/> to add the range specifier to.</param>
+        /// <param name="start">The starting or ending point of the range.</param>
+        public static void AddRange(this HttpWebRequest request, long start) { request.AddRange(start, -1L); }
+
+        /// <summary>Adds a byte range header to the request for a specified range.</summary>
+        /// <param name="request">The <see cref="System.Web.HttpWebRequest"/> to add the range specifier to.</param>
+        /// <param name="start">The position at which to start sending data.</param>
+        /// <param name="end">The position at which to stop sending data.</param>
+        public static void AddRange(this HttpWebRequest request, long start, long end)
+        {
+            if (request == null) throw new ArgumentNullException("request");
+            if (start < 0) throw new ArgumentOutOfRangeException("start", "Starting byte cannot be less than 0.");
+            if (end < start) end = -1;
+
+            string key = "Range";
+            string val = string.Format("bytes={0}-{1}", start, end == -1 ? "" : end.ToString());
+
+            httpWebRequestAddRangeHelper.Invoke(request.Headers, new object[] { key, val });
+        }
+        #endregion HttpWebRequest.AddRange(long)
+    }
+
+    public class DownloadOneFileManager
+    {
+        private PiceManager _piceManager;
+        private int _maxThread = 5;
+        private long _piceSize = 512 * 1024;
+        private Baidu1 _baidu1;
+        private DownloadFileData _fileData;
+        public DownloadOneFileManager(Baidu1 baidu1)
+        {
+            _baidu1 = baidu1;
+            CreateThreads(_maxThread);
+        }
+        public void DownFileWithProcess(Entry entry, string localPath, Action<long, long> process)
+        {
+            _fileData = new DownloadFileData(entry, localPath, process);
+            _piceManager = new PiceManager(_fileData, _piceSize);
+        }
+
+        private void CreateThreads(int n)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                new Thread(DownloadOnePice).Start();
+            }
+        }
+        private void DownloadOnePice()
+        {
+            while (true)
+            {
+                var data = GetPice();
+
+                bool ret = _baidu1.DownloadPice(data);
+                data.SetFinish(ret);
+            }
+        }
+
+        private PiceData GetPice()
+        {
+            while (true)
+            {
+                var data = _piceManager.GetPice();
+                if (data != null)
+                {
+                    return data;
+                }
+
+                Thread.Sleep(300);
+            }
+        }
+
+        public class DownloadFileData
+        {
+            public DownloadFileData() { }
+            public DownloadFileData(Entry entry, string localPath, Action<long, long> process) { this.entry = entry; this.localPath = localPath; this.process = process; }
+            public Entry entry { get; set; }
+            public string localPath { get; set; }
+            public Action<long, long> process { get; set; }
+        }
+
+        private class PiceManager
+        {
+            private long _piceSize;
+            private DownloadFileData _data;
+            private Stream _fileStream;
+            private Dictionary<PiceData, Status> _pices = new Dictionary<PiceData, Status>();
+            public PiceManager(DownloadFileData data, long piceSize)
+            {
+                _piceSize = piceSize;
+                _data = data;
+                _fileStream = new FileStream(_data.localPath, FileMode.Create, FileAccess.Write);
+                _fileStream.SetLength(_data.entry.size);
+            }
+            
+            private void CreatePices()
+            {
+                long count = _data.entry.size / _piceSize + 1;
+                for (int i = 0; i < count; i++)
+                {
+                    _pices.Add(new PiceData(_data.entry, i * _piceSize,
+                        i == count - 1 ?
+                        _data.entry.size - _piceSize * i :
+                        _piceSize,
+                        FinishCallback), Status.Wait);
+                }
+            }
+
+            private void FinishCallback(PiceData data, bool isSuccess)
+            {
+                lock (_pices)
+                {
+                    if (!isSuccess)
+                    {
+                        _pices[data] = Status.Wait;
+                        return;
+                    }
+
+                    _fileStream.Seek(data.Offsite, SeekOrigin.Begin);
+                    _fileStream.Write(data.Data, 0, data.Data.Length);
+                    _pices[data] = Status.Finish;
+                    Progress();
+                }
+            }
+            
+            private void Progress()
+            {
+                if (_data.process == null) { return; }
+
+                long current = 0;
+                foreach (var item in _pices)
+                {
+                    if (item.Value == Status.Finish)
+                    {
+                        current += item.Key.Size;
+                    }
+                }
+
+                _data.process(current, _data.entry.size);
+            }
+
+            public PiceData GetPice()
+            {
+                lock (_pices)
+                {
+                    foreach (var key in _pices.Keys)
+                    {
+                        if (_pices[key] == Status.Wait)
+                        {
+                            _pices[key] = Status.Action;
+                            return key;
+                        }
+                    }
+                }
+                return null;
+            }
+
+            enum Status
+            {
+                Wait,Action,Finish
+            }
+        }
+    }
+
+    public class PiceData
+    {
+        private Action<PiceData, bool> _callback;
+        public PiceData()
+        { }
+        public PiceData(Entry entry, long off, long size, Action<PiceData, bool> finishCallback)
+        {
+            Entry = entry;
+            Data = new byte[size];
+            WriteStream = new MemoryStream(Data);
+            Offsite = off;
+            Size = size;
+            _callback = finishCallback;
+        }
+
+        public void SetFinish(bool isSuccess)
+        {
+            _callback(this, isSuccess);
+        }
+        public Entry Entry { get; set; }
+        public Stream WriteStream { get; private set; }
+        public long Offsite { get; set; }
+        public long Size { get; set; }
+        public byte[] Data { get; private set; }
     }
 }
