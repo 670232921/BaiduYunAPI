@@ -174,7 +174,8 @@ namespace WpfApplication1
 
         public void Report(long cur, long total)
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (Action)delegate { ReportIn(cur, total); });
+            if (System.Windows.Application.Current != null)
+                System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (Action)delegate { ReportIn(cur, total); });
         }
         private void ReportIn(long cur, long total)
         {
@@ -186,18 +187,23 @@ namespace WpfApplication1
                 return;
             }
 
-            if ((DateTime.Now - lastUpdate).TotalMilliseconds < 300)
+            if (cur != 0)
             {
-                return;
-            }
 
-            if (lastUpdate != DateTime.MinValue)
-            {
-                var ss = (DateTime.Now - lastUpdate).TotalMilliseconds;
-                Speed = Convert.ToInt64((cur - Current) * 1000 / ss);
+                if ((DateTime.Now - lastUpdate).TotalMilliseconds < 300)
+                {
+                    return;
+                }
+
+                if (lastUpdate != DateTime.MinValue)
+                {
+                    var ss = (DateTime.Now - lastUpdate).TotalMilliseconds;
+                    Speed = Convert.ToInt64((cur - Current + Speed * 5) * 1000 / (ss + 5 * 1000));
+                    //Speed = Convert.ToInt64((cur - Current) * 1000 / ss);
+                }
+                lastUpdate = DateTime.Now;
+                Current = cur;
             }
-            lastUpdate = DateTime.Now;
-            Current = cur;
             Size = total;
 
             if (UpdateParent != null)

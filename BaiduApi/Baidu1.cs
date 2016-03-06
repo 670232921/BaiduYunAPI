@@ -17,7 +17,7 @@ namespace BaiduApi
 {
     public class Baidu1
     {
-        private DownloadOneFileManager _oneFileManger;
+        private DowbloadFileManager _fileManger;
 
 
         static double o1 = 0, o2 = 0, o3 = 0, o4 = 0;
@@ -39,7 +39,7 @@ namespace BaiduApi
             userName = _username;
             pwd = _pwd;
             Login();//登录百度
-            _oneFileManger = new DownloadOneFileManager(this);
+            _fileManger = new DowbloadFileManager(this);
         }
 
         #region 公开方法
@@ -223,7 +223,7 @@ namespace BaiduApi
 
         public void DownPiceFileWithProgress(Entry entry, string localPath, Action<long, long> process)
         {
-            _oneFileManger.DownFileWithProcess(entry, localPath, process);
+            _fileManger.DownFileWithProcess(entry, localPath, process);
         }
 
         public bool DownloadPice(PiceData data)
@@ -928,8 +928,71 @@ namespace BaiduApi
         #endregion HttpWebRequest.AddRange(long)
     }
 
+    public class DowbloadFileManager
+    {
+        private bool running = false;
+        private int _maxFile = 1;
+        private Baidu1 _baidu1;
+        private Queue<DownloadOneFileManager.DownloadFileData> _files = new Queue<DownloadOneFileManager.DownloadFileData>();
+        public DowbloadFileManager(Baidu1 baidu1) { _baidu1 = baidu1; }
+        public void DownFileWithProcess(Entry entry, string localPath, Action<long, long> process)
+        {
+            lock (_files)
+            {
+                _files.Enqueue(new DownloadOneFileManager.DownloadFileData(entry, localPath, process));
+                if (process != null) process(0, entry.size);
+                if (!running)
+                {
+                    new Thread(Run).Start();
+                }
+            }
+        }
+
+        private void Run()
+        {
+            List<DownloadOneFileManager> list = new List<DownloadOneFileManager>();
+            while (true)
+            {
+                DownloadOneFileManager.DownloadFileData data = null;
+                lock (_files)
+                {
+                    running = true;
+                    if (_files.Count != 0)
+                    {
+
+                        data = _files.Dequeue();
+
+                        var manager = new DownloadOneFileManager(_baidu1);
+                        manager.DownFileWithProcess(data);
+                        list.Add(manager);
+                    }
+                }
+
+                if (list.Count == 0)
+                {
+                    running = false;
+                    return;
+                }
+
+                while (list.Count >= _maxFile)
+                {
+                    foreach (var item in list)
+                    {
+                        if (item.IsFinish())
+                        {
+                            list.Remove(item);
+                            break;
+                        }
+                    }
+
+                    Thread.Sleep(300);
+                }
+            }
+        }
+    }
     public class DownloadOneFileManager
     {
+        //private AutoResetEvent finishHandle = new AutoResetEvent(false);
         private PiceManager _piceManager;
         private int _maxThread = 10;
         private long _piceSize = 512 * 1024;
@@ -939,13 +1002,14 @@ namespace BaiduApi
         {
             _baidu1 = baidu1;
         }
-        public void DownFileWithProcess(Entry entry, string localPath, Action<long, long> process)
+        public void DownFileWithProcess(DownloadFileData data)
         {
-            _fileData = new DownloadFileData(entry, localPath, process);
+            _fileData = data;
             _piceManager = new PiceManager(_fileData, _piceSize);
             CreateThreads(_maxThread);
+            //finishHandle.WaitOne();
         }
-
+        public bool IsFinish() { return !(_piceManager != null && !_piceManager.IsFinish()); }
         private void CreateThreads(int n)
         {
             for (int i = 0; i < n; i++)
@@ -958,7 +1022,12 @@ namespace BaiduApi
             while (true)
             {
                 var data = GetPice();
-                if (data == null) return;
+                if (data == null)
+                {
+                    // finish download
+                    //finishHandle.Set();
+                    return;
+                }
                 bool ret = _baidu1.DownloadPice(data);
                 data.SetFinish(ret);
             }
@@ -1002,7 +1071,7 @@ namespace BaiduApi
                 _fileStream.SetLength(_data.entry.size);
                 CreatePices();
             }
-            
+
             private void CreatePices()
             {
                 long count = _data.entry.size / _piceSize + 1;
