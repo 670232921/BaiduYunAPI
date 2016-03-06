@@ -67,7 +67,7 @@ namespace WpfApplication1
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            baidu1 = new Baidu1(UserName.Text, Password.Text);
+            baidu1 = new Baidu1(UserName.Text, Password.Text, Convert.ToInt32(ThreadCount.Text));
             _his.Push(null);
         ProManager.Files = baidu1.List(null);
         }

@@ -34,12 +34,12 @@ namespace BaiduApi
             get { return isLogin; }
         }
 
-        public Baidu1(string _username, string _pwd)
+        public Baidu1(string _username, string _pwd, int threadCount)
         {
             userName = _username;
             pwd = _pwd;
             Login();//登录百度
-            _fileManger = new DowbloadFileManager(this);
+            _fileManger = new DowbloadFileManager(this, threadCount);
         }
 
         #region 公开方法
@@ -933,8 +933,9 @@ namespace BaiduApi
         private bool running = false;
         private int _maxFile = 1;
         private Baidu1 _baidu1;
+        private int _threadCount = 10;
         private Queue<DownloadOneFileManager.DownloadFileData> _files = new Queue<DownloadOneFileManager.DownloadFileData>();
-        public DowbloadFileManager(Baidu1 baidu1) { _baidu1 = baidu1; }
+        public DowbloadFileManager(Baidu1 baidu1, int threadCount) { _baidu1 = baidu1; _threadCount = threadCount; }
         public void DownFileWithProcess(Entry entry, string localPath, Action<long, long> process)
         {
             lock (_files)
@@ -964,7 +965,7 @@ namespace BaiduApi
 
                         data = _files.Dequeue();
 
-                        var manager = new DownloadOneFileManager(_baidu1);
+                        var manager = new DownloadOneFileManager(_baidu1, _threadCount);
                         manager.DownFileWithProcess(data);
                         list.Add(manager);
                     }
@@ -1000,9 +1001,10 @@ namespace BaiduApi
         private long _piceSize = 512 * 1024;
         private Baidu1 _baidu1;
         private DownloadFileData _fileData;
-        public DownloadOneFileManager(Baidu1 baidu1)
+        public DownloadOneFileManager(Baidu1 baidu1, int threadCount)
         {
             _baidu1 = baidu1;
+            _maxThread = threadCount;
         }
         public void DownFileWithProcess(DownloadFileData data)
         {

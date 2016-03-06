@@ -42,7 +42,7 @@ namespace PublichWinform
         }
         private void taskfun()
         {
-            Baidu1 baidu1 = new Baidu1("670232921@qq.com", "ccc1459260");
+            Baidu1 baidu1 = new Baidu1("670232921@qq.com", "ccc1459260", 10);
 
             List<BaiDuFile> list = baidu1.GetFileDir();
 

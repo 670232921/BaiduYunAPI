@@ -60,9 +60,12 @@
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
         <Label Grid.Row="0" Content="用户名："/>
-        <TextBox Grid.Row="0" x:Name="UserName" Margin="80,0,0,0" Text="lvtingforccc@gmail.com"/>
-        <TextBox Grid.Row="1" x:Name="Password" Margin="80,0,0,0" Text="ccc1459260"/>
+        <Label Grid.Row="0" Margin="300,0,0,0" Content="10个线程的下载速度大约是50M的网"/>
+        <TextBox Grid.Row="0" x:Name="UserName" Margin="80,0,0,0" Text="lvtingforccc@gmail.com" Width="200" HorizontalAlignment="Left"/>
+        <TextBox Grid.Row="1" x:Name="Password" Margin="80,0,0,0" Text="ccc1459260" Width="200" HorizontalAlignment="Left"/>
         <Label Grid.Row="1" Content="密码："/>
+        <Label Grid.Row="1" Margin="300,0,0,0"  Content="线程数："/>
+        <TextBox Grid.Row="1" x:Name="ThreadCount" Margin="360,0,0,0" Text="10" Width="200" HorizontalAlignment="Left"/>
         <ListBox Grid.Row="2" x:Name="FileListBox" ItemTemplate="{StaticResource ListBoxTemplete}" ItemsSource="{Binding Files}" MouseDoubleClick="FileListBox_MouseDoubleClick"/>
         <Button Grid.Row="3" Content="登陆" Click="Button_Click"/>
 
