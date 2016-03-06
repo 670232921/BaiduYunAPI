@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApplication1"
         mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525">
+        Title="MainWindow" Height="700" Width="1200">
     <Window.Resources>
         <ResourceDictionary>
             <local:SizeConverter x:Key="SizeConverter"/>
@@ -35,8 +35,8 @@
             <DataTemplate x:Key="ProgressTemplete" DataType="ListBoxItem">
                 <Grid Height="30" Margin="0" HorizontalAlignment="Stretch">
                     <ProgressBar Minimum="0" Maximum="{Binding Size}" Value="{Binding Current}" Margin="0" HorizontalAlignment="Stretch"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Label Content="{Binding Name}" Width="70"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Label Content="{Binding Name}"/>
                         <Label Content="速度："/>
                         <Label Content="{Binding Speed, Converter={StaticResource SpeedConverter}}" Width="80"/>
                         <Label Content="当前大小："/>
@@ -44,7 +44,7 @@
                         <Label Content="总大小："/>
                         <Label Content="{Binding Size, Converter={StaticResource SizeConverter}}" Width="80"/>
                     </StackPanel>
-                    </Grid>
+                </Grid>
             </DataTemplate>
         </ResourceDictionary>
     </Window.Resources>
@@ -65,12 +65,12 @@
         <Label Grid.Row="1" Content="密码："/>
         <ListBox Grid.Row="2" x:Name="FileListBox" ItemTemplate="{StaticResource ListBoxTemplete}" ItemsSource="{Binding Files}" MouseDoubleClick="FileListBox_MouseDoubleClick"/>
         <Button Grid.Row="3" Content="登陆" Click="Button_Click"/>
-        
+
         <Button Grid.RowSpan="2" Grid.Column="1" Content="返回上一层" Click="Button_Click_1"/>
         <Button Grid.Row="3" Grid.Column="1" Content="下载" Click="Button_Click_2"/>
 
         <StackPanel Grid.Row="2" Grid.Column="1">
-            <StackPanel Height="25" Orientation="Horizontal">
+            <StackPanel Height="25" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Label Content="总个数："/>
                 <Label Content="{Binding TotalProgressCount}"/>
                 <Label Content="  总速度："/>
@@ -82,7 +82,7 @@
             </StackPanel>
             <ProgressBar Name="progre" Height="20" Value="{Binding TotalProgressCur}" Maximum="{Binding TotalProgressSize}" Minimum="0"/>
             <ListBox Name="ProgressListBox" ItemsSource="{Binding Children}" ItemTemplate="{StaticResource ProgressTemplete}" HorizontalContentAlignment="Stretch">
-                
+
             </ListBox>
         </StackPanel>
     </Grid>
