@@ -54,6 +54,15 @@ namespace WpfApplication1
 
         private void UpdateTotal()
         {
+            // remove finished
+            foreach (var item in Children)
+            {
+                if (item.IsFinish)
+                {
+                    Children.Remove(item);
+                    break;
+                }
+            }
             TotalProgressCount = Children.Count;
             TotalProgressSpd = 0;
             TotalProgressCur = 0;
@@ -160,19 +169,24 @@ namespace WpfApplication1
         {
             Name = name;
             UpdateParent = updateParent;
+            IsFinish = false;
         }
 
         public void Report(long cur, long total)
         {
-            if ((DateTime.Now - lastUpdate).TotalMilliseconds < 500)
-            {
-                return;
-            }
             System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (Action)delegate { ReportIn(cur, total); });
         }
         private void ReportIn(long cur, long total)
         {
-            if ((DateTime.Now - lastUpdate).TotalMilliseconds == 0)
+            if (cur == total)
+            {
+                // finish
+                IsFinish = true;
+                UpdateParent();
+                return;
+            }
+
+            if ((DateTime.Now - lastUpdate).TotalMilliseconds < 300)
             {
                 return;
             }
@@ -247,6 +261,7 @@ namespace WpfApplication1
                 }
             }
         }
+        public bool IsFinish { get; private set; }
     }
 
     public class SizeConverter : IValueConverter

@@ -931,19 +931,19 @@ namespace BaiduApi
     public class DownloadOneFileManager
     {
         private PiceManager _piceManager;
-        private int _maxThread = 15;
+        private int _maxThread = 10;
         private long _piceSize = 512 * 1024;
         private Baidu1 _baidu1;
         private DownloadFileData _fileData;
         public DownloadOneFileManager(Baidu1 baidu1)
         {
             _baidu1 = baidu1;
-            CreateThreads(_maxThread);
         }
         public void DownFileWithProcess(Entry entry, string localPath, Action<long, long> process)
         {
             _fileData = new DownloadFileData(entry, localPath, process);
             _piceManager = new PiceManager(_fileData, _piceSize);
+            CreateThreads(_maxThread);
         }
 
         private void CreateThreads(int n)
@@ -958,7 +958,7 @@ namespace BaiduApi
             while (true)
             {
                 var data = GetPice();
-
+                if (data == null) return;
                 bool ret = _baidu1.DownloadPice(data);
                 data.SetFinish(ret);
             }
@@ -966,19 +966,17 @@ namespace BaiduApi
 
         private PiceData GetPice()
         {
-            while (true)
+            while (!_piceManager.IsFinish())
             {
-                if (_piceManager != null)
+                var data = _piceManager.GetPice();
+                if (data != null)
                 {
-                    var data = _piceManager.GetPice();
-                    if (data != null)
-                    {
-                        return data;
-                    }
+                    return data;
                 }
 
                 Thread.Sleep(300);
             }
+            return null;
         }
 
         public class DownloadFileData
@@ -1027,27 +1025,29 @@ namespace BaiduApi
                         _pices[data] = Status.Wait;
                         return;
                     }
-
-                    _fileStream.Seek(data.Offsite, SeekOrigin.Begin);
-                    _fileStream.Write(data.Data, 0, data.Data.Length);
+                    if (_fileStream.CanWrite)
+                    {
+                        _fileStream.Seek(data.Offsite, SeekOrigin.Begin);
+                        _fileStream.Write(data.Data, 0, data.Data.Length);
+                    }
                     _pices[data] = Status.Finish;
                     Progress();
                 }
             }
 
-            private bool IsFinish()
+            public bool IsFinish()
             {
                 foreach (var item in _pices.Values)
                 {
                     if (item != Status.Finish)
                         return false;
                 }
-                _fileStream.Dispose();
                 return true;
             }
             
             private void Progress()
             {
+                if (IsFinish()) { _fileStream.Dispose(); }
                 if (_data.process == null) { return; }
 
                 long current = 0;
