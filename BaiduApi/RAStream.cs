@@ -9,9 +9,47 @@ namespace BaiduApi
 {
     static class StreamExtersion
     {
+        static StreamExtersion()
+        {
+            Thread th = new Thread(ThreadStart);
+            th.IsBackground = true;
+            th.Start();
+        }
+
+        static public Dictionary<Entry, RAStream> Cache = new Dictionary<Entry, RAStream>();
         static public Stream GetStream(this Baidu1 b, Entry e)
         {
-            return new RAStream(b, e);
+            lock(Cache)
+            {
+                RAStream ret = null;
+                if (Cache.ContainsKey(e))
+                {
+                    ret = Cache[e];
+                }
+                if (ret == null)
+                {
+                    ret = new RAStream(b, e);
+                    Cache.Add(e, ret);
+                }
+                return ret;
+            }
+        }
+
+        static private void ThreadStart()
+        {
+            while (true)
+            {
+                Thread.Sleep(1000);
+
+                foreach (var item in Cache)
+                {
+                    if (item.Value.IsTimeOut)
+                    {
+                        item.Value.Close();
+                        break;
+                    }
+                }
+            }
         }
     }
     class RAStream : System.IO.Stream
@@ -22,6 +60,7 @@ namespace BaiduApi
         }
         Entry _entry;
         Baidu1 _baidu1;
+        DateTime _lastUpdateTime = DateTime.Now;
 
         bool _released = false;
         long _pos;
@@ -29,6 +68,11 @@ namespace BaiduApi
         long BufferSize = 10 * 1024 * 1024;
         long UnitSize = 512 * 1024;
         Dictionary<PiceData, Status> _dict = new Dictionary<PiceData, Status>();
+
+        public bool IsTimeOut
+        {
+            get { return (DateTime.Now - _lastUpdateTime).TotalMinutes > 10; }
+        }
 
         internal RAStream(Baidu1 baidu1, Entry entry)
         {
@@ -272,6 +316,13 @@ namespace BaiduApi
 
         public override void Close()
         {
+            lock (StreamExtersion.Cache)
+            {
+                if (StreamExtersion.Cache.ContainsKey(this._entry))
+                {
+                    StreamExtersion.Cache.Remove(this._entry);
+                }
+            }
             _released = true;
             base.Close();
         }
