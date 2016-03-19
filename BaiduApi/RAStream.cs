@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace BaiduApi
 {
-    static class StreamExtersion
+    static public class StreamExtersion
     {
         static StreamExtersion()
         {
@@ -31,6 +31,7 @@ namespace BaiduApi
                     ret = new RAStream(b, e);
                     Cache.Add(e, ret);
                 }
+                ret.SetAlive();
                 return ret;
             }
         }
@@ -52,7 +53,7 @@ namespace BaiduApi
             }
         }
     }
-    class RAStream : System.IO.Stream
+    public class RAStream : System.IO.Stream
     {
         enum Status
         {
@@ -72,6 +73,11 @@ namespace BaiduApi
         public bool IsTimeOut
         {
             get { return (DateTime.Now - _lastUpdateTime).TotalMinutes > 10; }
+        }
+
+        public void SetAlive()
+        {
+            _lastUpdateTime = DateTime.Now;
         }
 
         internal RAStream(Baidu1 baidu1, Entry entry)
@@ -235,6 +241,8 @@ namespace BaiduApi
             bool needwait = false;
             while (true)
             {
+                SetAlive();
+                InsertToQueue();
                 if (needwait)
                 {
                     Thread.Sleep(100);
