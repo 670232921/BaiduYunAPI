@@ -463,7 +463,7 @@ namespace BaiduApi
 
             requestCookie = page.RequestCookie;
             List<Cookie> listCookie = GetAllCookies(requestCookie);
-            if(listCookie.Select(o => o.Name == "BDUSS").Count()==0){
+            if(!listCookie.Any(o => o.Name == "BDUSS")){
                 isLogin = false;
                 return;
             }
