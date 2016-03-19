@@ -1,9 +1,9 @@
-﻿extern alias global2;
+﻿//extern alias global2;
 
 using System;
 using System.Collections.Generic;
 using System.Text;
-using global2::Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace BaiduApi
 {

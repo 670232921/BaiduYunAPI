@@ -1,4 +1,4 @@
-﻿extern alias global2;
+﻿//extern alias global2;
 
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Net;
 using System.IO;
-using global2::Newtonsoft.Json;
+using Newtonsoft.Json;
 using System.Web;
 using System.Text.RegularExpressions;
 using System.Collections;
