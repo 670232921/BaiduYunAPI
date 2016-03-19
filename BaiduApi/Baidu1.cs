@@ -95,7 +95,7 @@ namespace BaiduApi
 
             Dictionary<string, string> data = new Dictionary<string, string>();
             data.Add("app_id", SkyDrive_app_id.ToString());
-            if (folder != null)  data.Add("dir", folder.path);
+            if (folder != null && !String.IsNullOrEmpty(folder.path))  data.Add("dir", folder.path);
             string url = "http://pan.baidu.com/api/list?";
 
             UrolsPage page = new UrolsPage();
