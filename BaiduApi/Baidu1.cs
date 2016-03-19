@@ -30,9 +30,12 @@ namespace BaiduApi
         private string Token = "";
         private string SkyDrive_app_id = "250528";//网盘对应的应用ID
         private bool isLogin = true;
-        public bool IsLogin{
+        public bool IsLogin
+        {
             get { return isLogin; }
         }
+
+        public DriveInfo DriveInfo { get; private set; }
 
         public Baidu1(string _username, string _pwd, int threadCount)
         {
@@ -53,9 +56,10 @@ namespace BaiduApi
             Dictionary<string, string> data = new Dictionary<string, string>();
             data.Add("app_id", SkyDrive_app_id.ToString());
             string url = "http://pan.baidu.com/api/list?";
-            
-            UrolsPage page = new UrolsPage ();
-            foreach (KeyValuePair<string,string> item in data) {
+
+            UrolsPage page = new UrolsPage();
+            foreach (KeyValuePair<string, string> item in data)
+            {
                 url += item.Key + "=" + item.Value + "&";
             }
             page.Url = url;
@@ -71,7 +75,7 @@ namespace BaiduApi
             BaiDuFile fileItem;
             foreach (Match item in mc)
             {
-                fileItem = new BaiDuFile ();
+                fileItem = new BaiDuFile();
                 if (GetJsonValue("isdir", item.Value) == "1")
                 {
                     fileItem.Type = 2;
@@ -95,7 +99,7 @@ namespace BaiduApi
 
             Dictionary<string, string> data = new Dictionary<string, string>();
             data.Add("app_id", SkyDrive_app_id.ToString());
-            if (folder != null && !String.IsNullOrEmpty(folder.path))  data.Add("dir", folder.path);
+            if (folder != null && !String.IsNullOrEmpty(folder.path)) data.Add("dir", folder.path);
             string url = "http://pan.baidu.com/api/list?";
 
             UrolsPage page = new UrolsPage();
@@ -148,13 +152,13 @@ namespace BaiduApi
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        public FileOper DownFile(string path,string localPath)
+        public FileOper DownFile(string path, string localPath)
         {
             string url = "http://c.pcs.baidu.com/rest/2.0/pcs/file?";
             url += "method=download&path=" + path + "&app_id=" + SkyDrive_app_id;
             try
             {
-                HttpWebRequest webReq = (HttpWebRequest)WebRequest.Create(url);         
+                HttpWebRequest webReq = (HttpWebRequest)WebRequest.Create(url);
                 webReq.CookieContainer = requestCookie;
                 GetAllCookies(requestCookie);
                 webReq.Method = "GET";
@@ -300,7 +304,7 @@ namespace BaiduApi
             Thread tt = new Thread(new ThreadStart(() =>
             {
                 DownFilepice(path, localPath + "4",
-                    (a1, a2, a3, a4) => { callback(a1 + o1+k1+m1, a2 + o2+k2+m2, a3 + o3+k3+m3, a4 + o4+k4+m4); }
+                    (a1, a2, a3, a4) => { callback(a1 + o1 + k1 + m1, a2 + o2 + k2 + m2, a3 + o3 + k3 + m3, a4 + o4 + k4 + m4); }
                     , 10 * 1024 * 1024 * 0, 10 * 1024 * 1024 * 4);
             }));
             tt.Start();
@@ -360,7 +364,8 @@ namespace BaiduApi
         /// 上传文件
         /// </summary>
         /// <param name="filePath"></param>
-        public FileOper UpLoadFile(string remotePath, string localPath) {
+        public FileOper UpLoadFile(string remotePath, string localPath)
+        {
             try
             {
                 //上传文件url
@@ -407,17 +412,19 @@ namespace BaiduApi
                         string result = page.POST(uploadUrl, boundary, postHeaderBytes, fileStream);
                     }
                 }
-                else {
+                else
+                {
                     return FileOper.下载文件不存在;
                 }
                 return FileOper.上传文件成功;
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 return FileOper.上传文件失败;
             }
             return FileOper.上传文件成功;
         }
-        
+
         #endregion
 
         /// <summary>
@@ -463,11 +470,36 @@ namespace BaiduApi
 
             requestCookie = page.RequestCookie;
             List<Cookie> listCookie = GetAllCookies(requestCookie);
-            if(!listCookie.Any(o => o.Name == "BDUSS")){
+            if (!listCookie.Any(o => o.Name == "BDUSS"))
+            {
                 isLogin = false;
                 return;
             }
+            GetDriveInfo();
             //Bduss = Convert.ToString(page.ResponseCookie["BDUSS"].Value);
+        }
+
+        private void GetDriveInfo()
+        {
+            if (!IsLogin) DriveInfo = new DriveInfo();
+            Dictionary<string, string> data = new Dictionary<string, string>();
+            data.Add("app_id", SkyDrive_app_id.ToString());
+            data.Add("checkexpire", "1");
+            data.Add("checkfree", "1");
+            data.Add("channel", "chunlei");
+            data.Add("clienttype", "0");
+            data.Add("web", "1");
+            string url = "http://pan.baidu.com/api/quota?";
+            UrolsPage page = new UrolsPage();
+            foreach (KeyValuePair<string, string> item in data)
+            {
+                url += item.Key + "=" + item.Value + "&";
+            }
+            page.Url = url;
+            page.RequestCookie = requestCookie;
+            page.GET();
+            string html = page.Html;
+            DriveInfo = JsonConvert.DeserializeObject<DriveInfo>(html);
         }
 
         /// <summary>
@@ -559,7 +591,7 @@ namespace BaiduApi
         private string SwitchValue(string input)
         {
             Regex regex = new Regex(@"\\u(\w{4})");
-            string result = regex.Replace(input, delegate(Match m)
+            string result = regex.Replace(input, delegate (Match m)
             {
                 string hexStr = m.Groups[1].Value;
                 string charStr = ((char)int.Parse(hexStr, System.Globalization.NumberStyles.HexNumber)).ToString();
@@ -595,7 +627,7 @@ namespace BaiduApi
         {
             return "----------" + DateTime.Now.Ticks.ToString("x");
         }
-        
+
         /// <summary>
         /// 获取CookieContainer中的Cookie值
         /// </summary>
@@ -761,7 +793,8 @@ namespace BaiduApi
         }
 
         private long contentLength;
-        public long ContentLength {
+        public long ContentLength
+        {
             get { return contentLength; }
             set { contentLength = value; }
         }
@@ -833,7 +866,7 @@ namespace BaiduApi
                 //将分隔符写入request请求
                 requestStream.Write(boundaryBytes, 0, boundaryBytes.Length);//分隔符
             }
-            
+
             //获取返回响应
             using (HttpWebResponse webResp = (HttpWebResponse)webrequest.GetResponse())
             {
@@ -849,7 +882,8 @@ namespace BaiduApi
         }
     }
 
-    public class BaiDuFile{
+    public class BaiDuFile
+    {
         public BaiDuFile() { }
         public BaiDuFile(string name, string path, int type)
         {
@@ -1122,7 +1156,7 @@ namespace BaiduApi
                 }
                 return true;
             }
-            
+
             private void Progress()
             {
                 if (IsFinish()) { _fileStream.Dispose(); }
@@ -1160,7 +1194,7 @@ namespace BaiduApi
 
             enum Status
             {
-                Wait,Action,Finish
+                Wait, Action, Finish
             }
         }
     }
@@ -1193,4 +1227,17 @@ namespace BaiduApi
         public long Size { get; set; }
         public byte[] Data { get; private set; }
     }
+
+
+    public class DriveInfo
+    {
+        public int errno { get; set; }
+        public int is_show_window { get; set; }
+        public long total { get; set; }
+        public long free { get; set; }
+        public long request_id { get; set; }
+        public bool expire { get; set; }
+        public long used { get; set; }
+    }
+
 }
